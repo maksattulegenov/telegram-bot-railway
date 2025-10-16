@@ -15,8 +15,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, filters, ContextTypes
 from telegram import WebAppInfo
 
-# Токен бота
-BOT_TOKEN = "7993103484:AAGtwbds-Hzdhpf_lxZr2Xf3YOtvSA1K6VE"
+# Токен бота - читаем из переменных окружения для Railway
+BOT_TOKEN = os.getenv('BOT_TOKEN', '7993103484:AAGtwbds-Hzdhpf_lxZr2Xf3YOtvSA1K6VE')
 
 # URL веб-приложения
 WEB_APP_URL = "https://railway-web-page-production.up.railway.app"
