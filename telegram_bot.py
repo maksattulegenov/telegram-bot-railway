@@ -390,8 +390,8 @@ async def get_contact_relation(update: Update, context: ContextTypes.DEFAULT_TYP
     user_data_storage[user_id]['contact_person_relation'] = relation
     
     await update.message.reply_text(
-        f"✅ Отношение: {relation}\n\n"
-        "📱 Укажите телефон контактного лица:"
+        f"Отношение: {relation}\n\n"
+        "Укажите телефон контактного лица:"
     )
     return CONTACT_PERSON
 
@@ -416,14 +416,14 @@ async def get_contact_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     examination_for_key = user_data_storage[user_id].get('examination_for_key', 'exam_self')
     if examination_for_key == 'exam_child':
         keyboard = [
-            [InlineKeyboardButton("✅ Да", callback_data="minor_yes")],
-            [InlineKeyboardButton("❌ Нет", callback_data="minor_no")]
+            [InlineKeyboardButton("Да", callback_data="minor_yes")],
+            [InlineKeyboardButton("Нет", callback_data="minor_no")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            f"✅ Телефон контактного лица: {contact_phone}\n\n"
-            "👶 Если пациент младше 18 лет: даю разрешение получать дополнительные согласия на проведение лечебных и диагностических манипуляций высокого риска при моем отсутствии у вышеуказанных лиц по вышеуказанным телефонам:",
+            f"Телефон контактного лица: {contact_phone}\n\n"
+            "Если пациент младше 18 лет: даю разрешение получать дополнительные согласия на проведение лечебных и диагностических манипуляций высокого риска при моем отсутствии у вышеуказанных лиц по вышеуказанным телефонам:",
             reply_markup=reply_markup
         )
         return MINOR_CONSENT
@@ -441,7 +441,38 @@ async def get_minor_consent(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data_storage[user_id]['minor_consent'] = consent
     print(f"✅ Согласие для несовершеннолетнего: {consent}")
     
-    await query.edit_message_text(f"✅ Разрешение для несовершеннолетнего: {consent}")
+    await query.edit_message_text(f"Разрешение для несовершеннолетнего: {consent}")
+    
+    return await finish_data_collection(update, context)
+
+async def get_minor_consent_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Получаем согласие для несовершеннолетнего через текстовое сообщение"""
+    user_id = update.effective_user.id
+    text_input = update.message.text.strip().lower()
+    
+    # Проверяем различные варианты "да" и "нет" на русском
+    if text_input in ['да', 'yes', 'д', 'y', '1', '+']:
+        consent = "Да"
+    elif text_input in ['нет', 'no', 'н', 'n', '0', '-']:
+        consent = "Нет"
+    else:
+        # Если ввод неопознан, предлагаем использовать кнопки
+        keyboard = [
+            [InlineKeyboardButton("Да", callback_data="minor_yes")],
+            [InlineKeyboardButton("Нет", callback_data="minor_no")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "Пожалуйста, выберите один из вариантов ниже или используйте кнопки:",
+            reply_markup=reply_markup
+        )
+        return MINOR_CONSENT
+    
+    user_data_storage[user_id]['minor_consent'] = consent
+    print(f"✅ Согласие для несовершеннолетнего (текст): {consent}")
+    
+    await update.message.reply_text(f"Разрешение для несовершеннолетнего: {consent}")
     
     return await finish_data_collection(update, context)
 
@@ -766,7 +797,10 @@ def main():
             ],
             PROHIBITED_PROCEDURES: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_prohibited_procedures)],
             CONTACT_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_contact_person_flow)],
-            MINOR_CONSENT: [CallbackQueryHandler(get_minor_consent, pattern="^minor_")]
+            MINOR_CONSENT: [
+                CallbackQueryHandler(get_minor_consent, pattern="^minor_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, get_minor_consent_text)
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
