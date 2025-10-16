@@ -438,12 +438,22 @@ async def get_minor_consent(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     consent = "Да" if query.data == "minor_yes" else "Нет"
     
+    print(f"📱 === ОБРАБОТКА СОГЛАСИЯ ДЛЯ НЕСОВЕРШЕННОЛЕТНЕГО ===")
+    print(f"🆔 User ID: {user_id}")
+    print(f"📊 Callback data: {query.data}")
+    print(f"✅ Согласие: {consent}")
+    
     user_data_storage[user_id]['minor_consent'] = consent
-    print(f"✅ Согласие для несовершеннолетнего: {consent}")
+    print(f"💾 Согласие сохранено в хранилище")
+    print(f"📋 Текущие данные пользователя: {list(user_data_storage[user_id].keys())}")
     
     await query.edit_message_text(f"Разрешение для несовершеннолетнего: {consent}")
+    print(f"✏️ Сообщение отредактировано")
     
-    return await finish_data_collection(update, context)
+    print(f"🎯 Переходим к завершению сбора данных...")
+    result = await finish_data_collection(update, context)
+    print(f"📤 Результат finish_data_collection: {result}")
+    return result
 
 async def get_minor_consent_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Получаем согласие для несовершеннолетнего через текстовое сообщение"""
