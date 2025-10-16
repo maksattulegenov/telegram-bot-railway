@@ -1,0 +1,32 @@
+# Bot specific files
+signatures/
+user_data_*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.pyc
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
