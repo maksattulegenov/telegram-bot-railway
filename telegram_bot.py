@@ -13,7 +13,7 @@ import urllib.parse
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, filters, ContextTypes, CallbackQueryHandler
-from telegram import WebAppInfo
+from telegram import WebAppInfo, WebAppData
 
 # Токен бота - читаем из переменных окружения для Railway
 BOT_TOKEN = os.getenv('BOT_TOKEN', '7993103484:AAGtwbds-Hzdhpf_lxZr2Xf3YOtvSA1K6VE')
@@ -481,6 +481,10 @@ async def finish_data_collection(update, context):
     user_data['n8n_webhook'] = N8N_WEBHOOK_URL
     user_data['bot_api_url'] = BOT_API_URL
     
+    # Добавляем timestamp если его нет
+    if 'timestamp' not in user_data:
+        user_data['timestamp'] = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
     # Кодируем данные для URL
     encoded_data = urllib.parse.quote(json.dumps(user_data, ensure_ascii=False))
     web_app_url_with_data = f"{WEB_APP_URL}?data={encoded_data}"
@@ -490,20 +494,23 @@ async def finish_data_collection(update, context):
         if key not in ['bot_token', 'n8n_webhook', 'bot_api_url']:
             print(f"   {key}: {value}")
     
+    print(f"🔗 URL длина: {len(web_app_url_with_data)} символов")
+    print(f"🔗 Encoded data длина: {len(encoded_data)} символов")
+    
     # Создаем кнопку для веб-приложения подписи
     keyboard = [
         [InlineKeyboardButton(
-            "✍️ Поставить подпись", 
+            "Поставить подпись", 
             web_app=WebAppInfo(url=web_app_url_with_data)
         )]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     message_text = (
-        "✅ Все данные собраны!\n\n"
-        "📝 Теперь нужно поставить подпись.\n"
+        "Все данные собраны!\n\n"
+        "Теперь нужно поставить подпись.\n"
         "Нажмите кнопку ниже, чтобы открыть приложение для подписи.\n"
-        "📋 Ваши данные будут переданы в приложение автоматически."
+        "Ваши данные будут переданы в приложение автоматически."
     )
     
     if hasattr(update, 'message'):
@@ -690,6 +697,40 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
+async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатываем данные от веб-приложения после завершения подписи"""
+    try:
+        # Получаем данные от веб-приложения
+        web_app_data = update.effective_message.web_app_data.data
+        data = json.loads(web_app_data)
+        
+        user_id = update.effective_user.id
+        print(f"📱 === ПОЛУЧЕНЫ ДАННЫЕ ОТ ВЕБ-ПРИЛОЖЕНИЯ ДЛЯ ПОЛЬЗОВАТЕЛЯ {user_id} ===")
+        print(f"📊 Данные: {data}")
+        
+        # Проверяем, что это завершение подписи
+        if data.get('action') == 'signature_completed':
+            await update.effective_message.reply_text(
+                "Спасибо за заполнение формы согласия!\n\n"
+                "Ваша информация и подпись сохранены в системе. "
+                "Данные переданы в медицинский центр для обработки.\n\n"
+                "Процедура завершена успешно."
+            )
+            
+            # Очищаем данные пользователя из временного хранилища
+            if user_id in user_data_storage:
+                del user_data_storage[user_id]
+                print(f"🗑️ Данные пользователя {user_id} очищены из памяти")
+        else:
+            print(f"⚠️ Неизвестное действие от веб-приложения: {data.get('action')}")
+            
+    except Exception as e:
+        print(f"❌ Ошибка обработки данных веб-приложения: {e}")
+        await update.effective_message.reply_text(
+            "Произошла ошибка при обработке данных. "
+            "Пожалуйста, обратитесь к администратору."
+        )
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена операции"""
     user_id = update.effective_user.id
@@ -697,7 +738,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del user_data_storage[user_id]
     
     await update.message.reply_text(
-        "❌ Операция отменена. Для начала заново отправьте /start"
+        "Операция отменена. Для начала заново отправьте /start"
     )
     return ConversationHandler.END
 
@@ -733,7 +774,8 @@ def main():
     # Регистрируем обработчики
     application.add_handler(conv_handler)
     
-    # Removed separate web app data handler - not needed anymore
+    # Добавляем обработчик веб-приложения для завершения подписи
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     
     application.add_handler(CommandHandler('help', help_command))
     
